@@ -1,0 +1,1596 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>원형질 분리 실험 분석 도구 | Plasmolysis Analyzer</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation"></script>
+    <style>
+        :root {
+            --primary: #2E7D32;
+            --primary-light: #4CAF50;
+            --secondary: #C62828;
+            --secondary-light: #EF5350;
+            --bg-dark: #1a1a2e;
+            --bg-card: #16213e;
+            --bg-input: #0f3460;
+            --text-primary: #ffffff;
+            --text-secondary: #b8b8b8;
+            --accent: #00d9ff;
+            --gradient-green: linear-gradient(135deg, #2E7D32, #66BB6A);
+            --gradient-red: linear-gradient(135deg, #C62828, #EF5350);
+            --gradient-blue: linear-gradient(135deg, #1565C0, #42A5F5);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: var(--bg-dark);
+            color: var(--text-primary);
+            min-height: 100vh;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        /* Header */
+        header {
+            text-align: center;
+            padding: 40px 20px;
+            background: linear-gradient(135deg, var(--bg-card), var(--bg-dark));
+            border-bottom: 2px solid var(--accent);
+            margin-bottom: 30px;
+        }
+
+        header h1 {
+            font-size: 2.5rem;
+            background: linear-gradient(90deg, var(--primary-light), var(--accent));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 10px;
+        }
+
+        header p {
+            color: var(--text-secondary);
+            font-size: 1.1rem;
+        }
+
+        .team-info {
+            margin-top: 15px;
+            padding: 10px 20px;
+            background: rgba(0, 217, 255, 0.1);
+            border-radius: 10px;
+            display: inline-block;
+        }
+
+        /* Tabs */
+        .tabs {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+        }
+
+        .tab-btn {
+            padding: 15px 30px;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .tab-btn.plant {
+            background: var(--gradient-green);
+            color: white;
+        }
+
+        .tab-btn.blood {
+            background: var(--gradient-red);
+            color: white;
+        }
+
+        .tab-btn.compare {
+            background: var(--gradient-blue);
+            color: white;
+        }
+
+        .tab-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        }
+
+        .tab-btn.active {
+            box-shadow: 0 0 20px rgba(0, 217, 255, 0.5);
+            transform: scale(1.05);
+        }
+
+        .tab-icon {
+            font-size: 1.5rem;
+        }
+
+        /* Tab Content */
+        .tab-content {
+            display: none;
+            animation: fadeIn 0.5s ease;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Cards */
+        .card {
+            background: var(--bg-card);
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .card h2 {
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid var(--accent);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .card h2 .icon {
+            font-size: 1.5rem;
+        }
+
+        /* Grid Layout */
+        .grid-2 {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 20px;
+        }
+
+        .grid-3 {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+        }
+
+        /* Data Entry Table */
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+
+        .data-table th, .data-table td {
+            padding: 12px;
+            text-align: center;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .data-table th {
+            background: var(--bg-input);
+            font-weight: 600;
+        }
+
+        .data-table tr:nth-child(even) {
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        .data-table input {
+            width: 80px;
+            padding: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 5px;
+            background: var(--bg-input);
+            color: white;
+            text-align: center;
+            font-size: 0.9rem;
+        }
+
+        .data-table input:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: 0 0 10px rgba(0, 217, 255, 0.3);
+        }
+
+        /* Concentration Badge */
+        .conc-badge {
+            display: inline-block;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        .conc-0 { background: linear-gradient(135deg, #4FC3F7, #0288D1); }
+        .conc-1 { background: linear-gradient(135deg, #81C784, #388E3C); }
+        .conc-3 { background: linear-gradient(135deg, #FFD54F, #F57C00); }
+        .conc-5 { background: linear-gradient(135deg, #FF8A65, #E64A19); }
+        .conc-10 { background: linear-gradient(135deg, #E57373, #C62828); }
+
+        /* Results Display */
+        .result-card {
+            background: linear-gradient(135deg, var(--bg-input), var(--bg-card));
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+            border: 1px solid rgba(0, 217, 255, 0.2);
+        }
+
+        .result-value {
+            font-size: 2.5rem;
+            font-weight: 700;
+            background: linear-gradient(90deg, var(--accent), var(--primary-light));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .result-label {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            margin-top: 5px;
+        }
+
+        /* Chart Container */
+        .chart-container {
+            position: relative;
+            height: 400px;
+            padding: 20px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 10px;
+        }
+
+        /* Buttons */
+        .btn {
+            padding: 12px 25px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background: var(--gradient-blue);
+            color: white;
+        }
+
+        .btn-success {
+            background: var(--gradient-green);
+            color: white;
+        }
+
+        .btn-danger {
+            background: var(--gradient-red);
+            color: white;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+            flex-wrap: wrap;
+        }
+
+        /* Status Indicators */
+        .status-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 500;
+        }
+
+        .status-normal { background: rgba(76, 175, 80, 0.2); color: #81C784; }
+        .status-partial { background: rgba(255, 193, 7, 0.2); color: #FFD54F; }
+        .status-complete { background: rgba(244, 67, 54, 0.2); color: #EF5350; }
+        .status-severe { background: rgba(156, 39, 176, 0.2); color: #BA68C8; }
+
+        /* Cell Visualization */
+        .cell-visual {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 30px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 10px;
+            margin: 20px 0;
+        }
+
+        .cell-diagram {
+            position: relative;
+            width: 120px;
+            height: 120px;
+        }
+
+        .cell-wall {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            border: 4px solid #8BC34A;
+            border-radius: 10px;
+            background: rgba(139, 195, 74, 0.1);
+        }
+
+        .cell-membrane {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            border: 3px solid #4CAF50;
+            border-radius: 8px;
+            background: rgba(76, 175, 80, 0.3);
+            transition: all 0.5s ease;
+        }
+
+        .rbc-diagram {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background: radial-gradient(ellipse at center, #ffcdd2 0%, #ef5350 50%, #c62828 100%);
+            box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.3);
+            transition: all 0.5s ease;
+        }
+
+        /* Image Upload */
+        .image-upload-area {
+            border: 2px dashed rgba(0, 217, 255, 0.5);
+            border-radius: 10px;
+            padding: 40px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: rgba(0, 217, 255, 0.05);
+        }
+
+        .image-upload-area:hover {
+            border-color: var(--accent);
+            background: rgba(0, 217, 255, 0.1);
+        }
+
+        .image-upload-area input {
+            display: none;
+        }
+
+        .uploaded-image {
+            max-width: 100%;
+            border-radius: 10px;
+            margin-top: 15px;
+        }
+
+        /* Analysis Summary */
+        .summary-box {
+            background: linear-gradient(135deg, rgba(0, 217, 255, 0.1), rgba(76, 175, 80, 0.1));
+            border: 1px solid rgba(0, 217, 255, 0.3);
+            border-radius: 12px;
+            padding: 25px;
+            margin-top: 20px;
+        }
+
+        .summary-title {
+            font-size: 1.3rem;
+            margin-bottom: 15px;
+            color: var(--accent);
+        }
+
+        .summary-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .summary-item:last-child {
+            border-bottom: none;
+        }
+
+        /* Comparison Table */
+        .comparison-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        .comparison-table th, .comparison-table td {
+            padding: 15px;
+            text-align: center;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .comparison-table th {
+            background: linear-gradient(135deg, var(--bg-input), var(--bg-card));
+        }
+
+        .comparison-table .plant-cell {
+            background: rgba(76, 175, 80, 0.1);
+        }
+
+        .comparison-table .blood-cell {
+            background: rgba(198, 40, 40, 0.1);
+        }
+
+        /* Progress Bar */
+        .progress-bar {
+            height: 10px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 5px;
+            overflow: hidden;
+            margin-top: 10px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            border-radius: 5px;
+            transition: width 0.5s ease;
+        }
+
+        .progress-fill.green { background: var(--gradient-green); }
+        .progress-fill.red { background: var(--gradient-red); }
+        .progress-fill.blue { background: var(--gradient-blue); }
+
+        /* Tooltip */
+        .tooltip {
+            position: relative;
+            cursor: help;
+        }
+
+        .tooltip::after {
+            content: attr(data-tooltip);
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 8px 12px;
+            background: var(--bg-dark);
+            color: white;
+            font-size: 0.8rem;
+            border-radius: 5px;
+            white-space: nowrap;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+            z-index: 100;
+        }
+
+        .tooltip:hover::after {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        /* Print Styles */
+        @media print {
+            body {
+                background: white;
+                color: black;
+            }
+            .card {
+                background: white;
+                border: 1px solid #ddd;
+                box-shadow: none;
+            }
+            .btn, .tabs {
+                display: none;
+            }
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            header h1 {
+                font-size: 1.8rem;
+            }
+            .grid-2, .grid-3 {
+                grid-template-columns: 1fr;
+            }
+            .tab-btn {
+                padding: 10px 20px;
+                font-size: 0.9rem;
+            }
+        }
+
+        /* Animation for cell diagrams */
+        @keyframes pulse {
+            0%, 100% { transform: translate(-50%, -50%) scale(1); }
+            50% { transform: translate(-50%, -50%) scale(1.02); }
+        }
+
+        .cell-membrane.animated {
+            animation: pulse 2s infinite;
+        }
+
+        /* Loading spinner */
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid rgba(255, 255, 255, 0.1);
+            border-top-color: var(--accent);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Export modal */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: var(--bg-card);
+            padding: 30px;
+            border-radius: 15px;
+            max-width: 500px;
+            width: 90%;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 1.5rem;
+            cursor: pointer;
+        }
+
+        /* Theory Section */
+        .theory-box {
+            background: rgba(0, 217, 255, 0.05);
+            border-left: 4px solid var(--accent);
+            padding: 20px;
+            margin: 15px 0;
+            border-radius: 0 10px 10px 0;
+        }
+
+        .formula {
+            font-family: 'Cambria Math', 'Times New Roman', serif;
+            font-size: 1.2rem;
+            text-align: center;
+            padding: 15px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 8px;
+            margin: 15px 0;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>🔬 원형질 분리 실험 분석 도구</h1>
+        <p>Plasmolysis Analysis Tool for Plant Cells & Red Blood Cells</p>
+        <div class="team-info">
+            <strong>조장:</strong> 2101 김서율 | <strong>조원:</strong> 2107 박세인, 2113 이하은, 2116 정수현
+        </div>
+    </header>
+
+    <div class="container">
+        <!-- Tabs -->
+        <div class="tabs">
+            <button class="tab-btn plant active" onclick="switchTab('plant')">
+                <span class="tab-icon">🌿</span>
+                동백꽃 잎 세포
+            </button>
+            <button class="tab-btn blood" onclick="switchTab('blood')">
+                <span class="tab-icon">🩸</span>
+                적혈구 (RBC)
+            </button>
+            <button class="tab-btn compare" onclick="switchTab('compare')">
+                <span class="tab-icon">📊</span>
+                비교 분석
+            </button>
+        </div>
+
+        <!-- Plant Cell Tab -->
+        <div id="plant-tab" class="tab-content active">
+            <div class="grid-2">
+                <!-- Data Input -->
+                <div class="card">
+                    <h2><span class="icon">📝</span> 데이터 입력 (동백꽃 잎)</h2>
+                    <p style="color: var(--text-secondary); margin-bottom: 15px;">
+                        각 농도별로 세포의 원래 면적과 수축된 원형질 면적을 입력하세요.
+                    </p>
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>농도 (%)</th>
+                                <th>세포 원래 면적 (μm²)</th>
+                                <th>원형질 면적 (μm²)</th>
+                                <th>분리도 (D)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><span class="conc-badge conc-0">0%</span></td>
+                                <td><input type="number" id="plant-orig-0" value="10000" onchange="calculatePlantD()"></td>
+                                <td><input type="number" id="plant-shrink-0" value="10000" onchange="calculatePlantD()"></td>
+                                <td id="plant-d-0">0.00</td>
+                            </tr>
+                            <tr>
+                                <td><span class="conc-badge conc-1">1%</span></td>
+                                <td><input type="number" id="plant-orig-1" value="10000" onchange="calculatePlantD()"></td>
+                                <td><input type="number" id="plant-shrink-1" value="9800" onchange="calculatePlantD()"></td>
+                                <td id="plant-d-1">0.02</td>
+                            </tr>
+                            <tr>
+                                <td><span class="conc-badge conc-3">3%</span></td>
+                                <td><input type="number" id="plant-orig-3" value="10000" onchange="calculatePlantD()"></td>
+                                <td><input type="number" id="plant-shrink-3" value="8000" onchange="calculatePlantD()"></td>
+                                <td id="plant-d-3">0.20</td>
+                            </tr>
+                            <tr>
+                                <td><span class="conc-badge conc-5">5%</span></td>
+                                <td><input type="number" id="plant-orig-5" value="10000" onchange="calculatePlantD()"></td>
+                                <td><input type="number" id="plant-shrink-5" value="5500" onchange="calculatePlantD()"></td>
+                                <td id="plant-d-5">0.45</td>
+                            </tr>
+                            <tr>
+                                <td><span class="conc-badge conc-10">10%</span></td>
+                                <td><input type="number" id="plant-orig-10" value="10000" onchange="calculatePlantD()"></td>
+                                <td><input type="number" id="plant-shrink-10" value="3500" onchange="calculatePlantD()"></td>
+                                <td id="plant-d-10">0.65</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <div class="btn-group">
+                        <button class="btn btn-primary" onclick="calculatePlantD()">📊 계산하기</button>
+                        <button class="btn btn-success" onclick="resetPlantData()">🔄 초기화</button>
+                    </div>
+                </div>
+
+                <!-- Theory Box -->
+                <div class="card">
+                    <h2><span class="icon">📚</span> 이론 및 공식</h2>
+                    <div class="theory-box">
+                        <h3 style="margin-bottom: 10px;">원형질 분리도 (Degree of Plasmolysis)</h3>
+                        <p>고장액에서 삼투 현상으로 인해 세포막이 세포벽에서 분리되는 정도를 수치화한 값</p>
+                    </div>
+                    <div class="formula">
+                        D = (A₀ - Aₚ) / A₀
+                    </div>
+                    <p style="text-align: center; color: var(--text-secondary);">
+                        A₀: 세포 원래 면적 | Aₚ: 수축된 원형질 면적
+                    </p>
+
+                    <div style="margin-top: 20px;">
+                        <h4 style="margin-bottom: 10px;">예상 상태별 D값 범위</h4>
+                        <div class="summary-item">
+                            <span class="status-indicator status-normal">정상 (팽압 유지)</span>
+                            <span>D = 0 ~ 0.05</span>
+                        </div>
+                        <div class="summary-item">
+                            <span class="status-indicator status-partial">부분 분리</span>
+                            <span>D = 0.05 ~ 0.30</span>
+                        </div>
+                        <div class="summary-item">
+                            <span class="status-indicator status-complete">완전 분리</span>
+                            <span>D = 0.30 ~ 0.60</span>
+                        </div>
+                        <div class="summary-item">
+                            <span class="status-indicator status-severe">심한 수축</span>
+                            <span>D > 0.60</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Chart and Visualization -->
+            <div class="grid-2" style="margin-top: 20px;">
+                <div class="card">
+                    <h2><span class="icon">📈</span> 농도별 원형질 분리도 그래프</h2>
+                    <div class="chart-container">
+                        <canvas id="plantChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h2><span class="icon">🔬</span> 세포 상태 시각화</h2>
+                    <div id="plant-visualization">
+                        <div style="display: flex; justify-content: space-around; flex-wrap: wrap; gap: 20px;">
+                            <div style="text-align: center;">
+                                <span class="conc-badge conc-0">0%</span>
+                                <div class="cell-visual">
+                                    <div class="cell-diagram">
+                                        <div class="cell-wall"></div>
+                                        <div class="cell-membrane animated" style="width: 100%; height: 100%;"></div>
+                                    </div>
+                                </div>
+                                <small>팽압 최대</small>
+                            </div>
+                            <div style="text-align: center;">
+                                <span class="conc-badge conc-3">3%</span>
+                                <div class="cell-visual">
+                                    <div class="cell-diagram">
+                                        <div class="cell-wall"></div>
+                                        <div class="cell-membrane" style="width: 80%; height: 80%;"></div>
+                                    </div>
+                                </div>
+                                <small>부분 분리</small>
+                            </div>
+                            <div style="text-align: center;">
+                                <span class="conc-badge conc-10">10%</span>
+                                <div class="cell-visual">
+                                    <div class="cell-diagram">
+                                        <div class="cell-wall"></div>
+                                        <div class="cell-membrane" style="width: 50%; height: 50%;"></div>
+                                    </div>
+                                </div>
+                                <small>심한 수축</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Results Summary -->
+            <div class="card" style="margin-top: 20px;">
+                <h2><span class="icon">📋</span> 분석 결과 요약</h2>
+                <div class="grid-3">
+                    <div class="result-card">
+                        <div class="result-value" id="plant-max-d">0.65</div>
+                        <div class="result-label">최대 분리도 (10%)</div>
+                    </div>
+                    <div class="result-card">
+                        <div class="result-value" id="plant-avg-d">0.26</div>
+                        <div class="result-label">평균 분리도</div>
+                    </div>
+                    <div class="result-card">
+                        <div class="result-value" id="plant-isotonic">~1%</div>
+                        <div class="result-label">추정 등장점</div>
+                    </div>
+                </div>
+                <div class="summary-box" id="plant-summary">
+                    <div class="summary-title">🔍 관찰 해석</div>
+                    <p id="plant-interpretation">
+                        농도가 증가함에 따라 원형질 분리도가 증가하는 것을 확인할 수 있습니다.
+                        이는 고장액에서 삼투압에 의해 세포 내 물이 빠져나가 원형질이 수축되기 때문입니다.
+                        0% 용액(증류수)에서는 세포가 팽압을 유지하고, 10% 용액에서는 심한 원형질 분리가 관찰됩니다.
+                    </p>
+                </div>
+            </div>
+
+            <!-- Image Upload Section -->
+            <div class="card" style="margin-top: 20px;">
+                <h2><span class="icon">📷</span> 현미경 이미지 업로드</h2>
+                <div class="grid-2">
+                    <div>
+                        <label class="image-upload-area" for="plant-image-upload">
+                            <input type="file" id="plant-image-upload" accept="image/*" multiple onchange="handlePlantImageUpload(event)">
+                            <div style="font-size: 3rem;">📤</div>
+                            <p>클릭하여 이미지 업로드</p>
+                            <small style="color: var(--text-secondary);">OSUN 4.0에서 촬영한 이미지를 업로드하세요</small>
+                        </label>
+                    </div>
+                    <div id="plant-image-preview" style="display: flex; flex-wrap: wrap; gap: 10px;"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Blood Cell Tab -->
+        <div id="blood-tab" class="tab-content">
+            <div class="grid-2">
+                <!-- Data Input -->
+                <div class="card">
+                    <h2><span class="icon">📝</span> 데이터 입력 (적혈구)</h2>
+                    <p style="color: var(--text-secondary); margin-bottom: 15px;">
+                        각 농도별로 적혈구의 직경과 상태를 입력하세요.
+                    </p>
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>농도 (%)</th>
+                                <th>평균 직경 (μm)</th>
+                                <th>관찰된 상태</th>
+                                <th>수축률</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><span class="conc-badge conc-0">0%</span></td>
+                                <td><input type="number" id="rbc-diam-0" value="0" step="0.1" onchange="calculateRBCStatus()"></td>
+                                <td>
+                                    <select id="rbc-status-0" onchange="calculateRBCStatus()">
+                                        <option value="hemolysis" selected>용혈 (Hemolysis)</option>
+                                        <option value="swollen">팽창 (Swollen)</option>
+                                        <option value="normal">정상</option>
+                                    </select>
+                                </td>
+                                <td id="rbc-rate-0">파열</td>
+                            </tr>
+                            <tr>
+                                <td><span class="conc-badge conc-1">1%</span></td>
+                                <td><input type="number" id="rbc-diam-1" value="7.5" step="0.1" onchange="calculateRBCStatus()"></td>
+                                <td>
+                                    <select id="rbc-status-1" onchange="calculateRBCStatus()">
+                                        <option value="hemolysis">용혈</option>
+                                        <option value="swollen">팽창</option>
+                                        <option value="normal" selected>정상</option>
+                                        <option value="crenated">수축 (Crenation)</option>
+                                    </select>
+                                </td>
+                                <td id="rbc-rate-1">0%</td>
+                            </tr>
+                            <tr>
+                                <td><span class="conc-badge conc-3">3%</span></td>
+                                <td><input type="number" id="rbc-diam-3" value="6.5" step="0.1" onchange="calculateRBCStatus()"></td>
+                                <td>
+                                    <select id="rbc-status-3" onchange="calculateRBCStatus()">
+                                        <option value="normal">정상</option>
+                                        <option value="crenated" selected>수축</option>
+                                        <option value="severe">심한 수축</option>
+                                    </select>
+                                </td>
+                                <td id="rbc-rate-3">-13%</td>
+                            </tr>
+                            <tr>
+                                <td><span class="conc-badge conc-5">5%</span></td>
+                                <td><input type="number" id="rbc-diam-5" value="5.5" step="0.1" onchange="calculateRBCStatus()"></td>
+                                <td>
+                                    <select id="rbc-status-5" onchange="calculateRBCStatus()">
+                                        <option value="crenated">수축</option>
+                                        <option value="severe" selected>심한 수축</option>
+                                    </select>
+                                </td>
+                                <td id="rbc-rate-5">-27%</td>
+                            </tr>
+                            <tr>
+                                <td><span class="conc-badge conc-10">10%</span></td>
+                                <td><input type="number" id="rbc-diam-10" value="4.5" step="0.1" onchange="calculateRBCStatus()"></td>
+                                <td>
+                                    <select id="rbc-status-10" onchange="calculateRBCStatus()">
+                                        <option value="severe" selected>극심한 수축</option>
+                                    </select>
+                                </td>
+                                <td id="rbc-rate-10">-40%</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <div class="btn-group">
+                        <button class="btn btn-primary" onclick="calculateRBCStatus()">📊 계산하기</button>
+                        <button class="btn btn-danger" onclick="resetRBCData()">🔄 초기화</button>
+                    </div>
+                </div>
+
+                <!-- RBC Theory -->
+                <div class="card">
+                    <h2><span class="icon">📚</span> 적혈구 삼투 현상</h2>
+                    <div class="theory-box">
+                        <h3 style="margin-bottom: 10px;">적혈구의 특징</h3>
+                        <p>적혈구는 <strong>세포벽이 없어</strong> 삼투압 변화에 민감하게 반응합니다.</p>
+                    </div>
+
+                    <div style="margin-top: 20px;">
+                        <h4 style="margin-bottom: 15px;">용액 조건별 반응</h4>
+
+                        <div style="display: flex; align-items: center; gap: 15px; margin: 15px 0; padding: 15px; background: rgba(33, 150, 243, 0.1); border-radius: 10px;">
+                            <div class="rbc-diagram" style="width: 60px; height: 60px; transform: scale(1.3);"></div>
+                            <div>
+                                <strong style="color: #42A5F5;">저장액 (0%)</strong>
+                                <p style="font-size: 0.9rem; color: var(--text-secondary);">물 유입 → 팽창 → 용혈 (Hemolysis)</p>
+                            </div>
+                        </div>
+
+                        <div style="display: flex; align-items: center; gap: 15px; margin: 15px 0; padding: 15px; background: rgba(76, 175, 80, 0.1); border-radius: 10px;">
+                            <div class="rbc-diagram" style="width: 50px; height: 50px;"></div>
+                            <div>
+                                <strong style="color: #66BB6A;">등장액 (~0.9%)</strong>
+                                <p style="font-size: 0.9rem; color: var(--text-secondary);">삼투압 평형 → 정상 형태 유지</p>
+                            </div>
+                        </div>
+
+                        <div style="display: flex; align-items: center; gap: 15px; margin: 15px 0; padding: 15px; background: rgba(244, 67, 54, 0.1); border-radius: 10px;">
+                            <div class="rbc-diagram" style="width: 35px; height: 35px; border-radius: 30%;"></div>
+                            <div>
+                                <strong style="color: #EF5350;">고장액 (3~10%)</strong>
+                                <p style="font-size: 0.9rem; color: var(--text-secondary);">물 유출 → 수축 → Crenation (톱니 모양)</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- RBC Chart and Visualization -->
+            <div class="grid-2" style="margin-top: 20px;">
+                <div class="card">
+                    <h2><span class="icon">📈</span> 농도별 적혈구 직경 변화</h2>
+                    <div class="chart-container">
+                        <canvas id="rbcChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h2><span class="icon">🔬</span> 적혈구 상태 시각화</h2>
+                    <div style="display: flex; justify-content: space-around; flex-wrap: wrap; gap: 20px; padding: 20px;">
+                        <div style="text-align: center;">
+                            <span class="conc-badge conc-0">0%</span>
+                            <div class="cell-visual" style="flex-direction: column;">
+                                <div class="rbc-diagram" style="width: 80px; height: 80px; opacity: 0.5; border: 2px dashed #ef5350;"></div>
+                            </div>
+                            <small style="color: #EF5350;">용혈 (파열)</small>
+                        </div>
+                        <div style="text-align: center;">
+                            <span class="conc-badge conc-1">~0.9%</span>
+                            <div class="cell-visual">
+                                <div class="rbc-diagram" style="width: 60px; height: 60px;"></div>
+                            </div>
+                            <small style="color: #66BB6A;">정상</small>
+                        </div>
+                        <div style="text-align: center;">
+                            <span class="conc-badge conc-5">5%</span>
+                            <div class="cell-visual">
+                                <div class="rbc-diagram" style="width: 45px; height: 45px; border-radius: 30%;"></div>
+                            </div>
+                            <small style="color: #FF8A65;">수축</small>
+                        </div>
+                        <div style="text-align: center;">
+                            <span class="conc-badge conc-10">10%</span>
+                            <div class="cell-visual">
+                                <div class="rbc-diagram" style="width: 30px; height: 30px; border-radius: 20%;"></div>
+                            </div>
+                            <small style="color: #E57373;">극심한 수축</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- RBC Results -->
+            <div class="card" style="margin-top: 20px;">
+                <h2><span class="icon">📋</span> 분석 결과 요약</h2>
+                <div class="grid-3">
+                    <div class="result-card">
+                        <div class="result-value" id="rbc-normal-diam">7.5μm</div>
+                        <div class="result-label">정상 직경 (등장액)</div>
+                    </div>
+                    <div class="result-card">
+                        <div class="result-value" id="rbc-max-shrink">-40%</div>
+                        <div class="result-label">최대 수축률 (10%)</div>
+                    </div>
+                    <div class="result-card">
+                        <div class="result-value" id="rbc-isotonic">0.9%</div>
+                        <div class="result-label">등장점 (NaCl)</div>
+                    </div>
+                </div>
+                <div class="summary-box">
+                    <div class="summary-title">🔍 관찰 해석</div>
+                    <p id="rbc-interpretation">
+                        적혈구는 세포벽이 없어 삼투압 변화에 민감합니다. 저장액(0%)에서는 용혈이,
+                        고장액(3~10%)에서는 수축(Crenation)이 관찰됩니다. 등장액(~0.9% NaCl)에서만
+                        정상적인 이중오목원반형을 유지합니다.
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Comparison Tab -->
+        <div id="compare-tab" class="tab-content">
+            <div class="card">
+                <h2><span class="icon">📊</span> 식물 세포 vs 동물 세포 비교</h2>
+                <table class="comparison-table">
+                    <thead>
+                        <tr>
+                            <th>비교 항목</th>
+                            <th class="plant-cell">🌿 동백꽃 잎 세포</th>
+                            <th class="blood-cell">🩸 적혈구</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>세포벽</strong></td>
+                            <td class="plant-cell">있음 (셀룰로스)</td>
+                            <td class="blood-cell">없음</td>
+                        </tr>
+                        <tr>
+                            <td><strong>저장액 반응 (0%)</strong></td>
+                            <td class="plant-cell">팽압 증가, 세포벽이 파열 방지</td>
+                            <td class="blood-cell">팽창 후 파열 (용혈)</td>
+                        </tr>
+                        <tr>
+                            <td><strong>등장액 반응</strong></td>
+                            <td class="plant-cell">세포막이 세포벽에 밀착</td>
+                            <td class="blood-cell">정상 형태 유지</td>
+                        </tr>
+                        <tr>
+                            <td><strong>고장액 반응</strong></td>
+                            <td class="plant-cell">원형질 분리 (Plasmolysis)</td>
+                            <td class="blood-cell">수축 (Crenation)</td>
+                        </tr>
+                        <tr>
+                            <td><strong>가역성</strong></td>
+                            <td class="plant-cell">복귀 가능 (Deplasmolysis)</td>
+                            <td class="blood-cell">제한적 복귀 가능</td>
+                        </tr>
+                        <tr>
+                            <td><strong>세포 손상</strong></td>
+                            <td class="plant-cell">세포벽으로 보호</td>
+                            <td class="blood-cell">저장액에서 파열 위험</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Combined Chart -->
+            <div class="card" style="margin-top: 20px;">
+                <h2><span class="icon">📈</span> 농도별 변화 비교 그래프</h2>
+                <div class="chart-container" style="height: 450px;">
+                    <canvas id="comparisonChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Key Findings -->
+            <div class="grid-2" style="margin-top: 20px;">
+                <div class="card">
+                    <h2><span class="icon">💡</span> 핵심 발견</h2>
+                    <div class="summary-box">
+                        <h4 style="color: #4CAF50; margin-bottom: 10px;">🌿 식물 세포의 특성</h4>
+                        <ul style="margin-left: 20px; color: var(--text-secondary);">
+                            <li>세포벽이 팽압을 지지하여 저장액에서 파열 방지</li>
+                            <li>고장액에서 원형질만 수축 (세포벽은 유지)</li>
+                            <li>원형질 분리는 가역적 현상</li>
+                        </ul>
+                    </div>
+                    <div class="summary-box" style="margin-top: 15px;">
+                        <h4 style="color: #EF5350; margin-bottom: 10px;">🩸 동물 세포의 특성</h4>
+                        <ul style="margin-left: 20px; color: var(--text-secondary);">
+                            <li>세포벽 부재로 삼투압에 매우 민감</li>
+                            <li>저장액에서 용혈 (세포 파열)</li>
+                            <li>고장액에서 세포 전체가 수축</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h2><span class="icon">🎯</span> 실험 결론</h2>
+                    <div id="conclusion-text" style="line-height: 1.8; color: var(--text-secondary);">
+                        <p>
+                            본 실험을 통해 <strong style="color: var(--accent);">세포벽의 유무</strong>가
+                            삼투압 변화에 대한 세포의 반응을 결정짓는 핵심 요소임을 확인하였습니다.
+                        </p>
+                        <br>
+                        <p>
+                            <strong style="color: #4CAF50;">식물 세포</strong>는 세포벽의 보호 덕분에
+                            다양한 삼투압 환경에서도 구조적 완전성을 유지하며, 고장액에서 발생하는
+                            원형질 분리도 증류수 처리를 통해 복귀가 가능합니다.
+                        </p>
+                        <br>
+                        <p>
+                            반면 <strong style="color: #EF5350;">동물 세포(적혈구)</strong>는
+                            세포벽이 없어 삼투압 변화에 취약하며, 특히 저장액에서의 용혈은
+                            비가역적인 세포 손상을 초래합니다.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Export Section -->
+        <div class="card" style="margin-top: 30px;">
+            <h2><span class="icon">💾</span> 결과 내보내기</h2>
+            <div class="btn-group">
+                <button class="btn btn-primary" onclick="exportToCSV()">📊 CSV 다운로드</button>
+                <button class="btn btn-success" onclick="exportToPDF()">📄 PDF 보고서</button>
+                <button class="btn btn-danger" onclick="printReport()">🖨️ 인쇄하기</button>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <footer style="text-align: center; padding: 30px; color: var(--text-secondary); margin-top: 30px;">
+            <p>전남과학고등학교 | 2026학년도 생명과학 실험</p>
+            <p style="margin-top: 5px;">조장: 2101 김서율 | 조원: 2107 박세인, 2113 이하은, 2116 정수현</p>
+        </footer>
+    </div>
+
+    <script>
+        // Tab Switching
+        function switchTab(tab) {
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+
+            document.getElementById(tab + '-tab').classList.add('active');
+            event.target.closest('.tab-btn').classList.add('active');
+
+            // Update charts when switching tabs
+            if (tab === 'compare') {
+                updateComparisonChart();
+            }
+        }
+
+        // Plant Cell Calculations
+        function calculatePlantD() {
+            const concentrations = [0, 1, 3, 5, 10];
+            const dValues = [];
+
+            concentrations.forEach(conc => {
+                const orig = parseFloat(document.getElementById(`plant-orig-${conc}`).value) || 0;
+                const shrink = parseFloat(document.getElementById(`plant-shrink-${conc}`).value) || 0;
+
+                let d = 0;
+                if (orig > 0) {
+                    d = (orig - shrink) / orig;
+                    d = Math.max(0, Math.min(1, d)); // Clamp between 0 and 1
+                }
+
+                dValues.push(d);
+                document.getElementById(`plant-d-${conc}`).textContent = d.toFixed(2);
+            });
+
+            // Update summary
+            const maxD = Math.max(...dValues);
+            const avgD = dValues.reduce((a, b) => a + b, 0) / dValues.length;
+
+            document.getElementById('plant-max-d').textContent = maxD.toFixed(2);
+            document.getElementById('plant-avg-d').textContent = avgD.toFixed(2);
+
+            // Estimate isotonic point
+            const isotonicIdx = dValues.findIndex(d => d > 0.05);
+            const isotonicConc = isotonicIdx > 0 ? `~${concentrations[isotonicIdx-1]}%` : '< 0%';
+            document.getElementById('plant-isotonic').textContent = isotonicConc;
+
+            // Update chart
+            updatePlantChart(dValues);
+
+            // Update interpretation
+            updatePlantInterpretation(dValues, maxD);
+        }
+
+        function updatePlantInterpretation(dValues, maxD) {
+            let interpretation = '';
+
+            if (maxD < 0.1) {
+                interpretation = '모든 농도에서 원형질 분리가 거의 관찰되지 않았습니다. 실험 조건을 재검토해 주세요.';
+            } else if (maxD < 0.3) {
+                interpretation = '약한 원형질 분리가 관찰되었습니다. 더 높은 농도의 용액을 사용하면 뚜렷한 분리를 관찰할 수 있습니다.';
+            } else if (maxD < 0.6) {
+                interpretation = `농도 증가에 따라 원형질 분리도가 증가하는 것이 관찰되었습니다.
+                    0% 저장액에서는 팽압이 유지되고, 고장액에서는 삼투압에 의해 물이 세포 밖으로 이동하여
+                    원형질이 세포벽에서 분리되었습니다.`;
+            } else {
+                interpretation = `10% 고장액에서 심한 원형질 분리(D=${maxD.toFixed(2)})가 관찰되었습니다.
+                    이는 고농도 용액에서 강한 삼투압이 작용하여 세포 내 수분이 급격히 빠져나갔음을 의미합니다.
+                    증류수 처리 시 원형질 분리 복귀(Deplasmolysis)가 예상됩니다.`;
+            }
+
+            document.getElementById('plant-interpretation').textContent = interpretation;
+        }
+
+        // RBC Calculations
+        function calculateRBCStatus() {
+            const normalDiam = 7.5; // Normal RBC diameter in μm
+            const concentrations = [0, 1, 3, 5, 10];
+            const diameters = [];
+
+            concentrations.forEach(conc => {
+                const diam = parseFloat(document.getElementById(`rbc-diam-${conc}`).value) || 0;
+                const status = document.getElementById(`rbc-status-${conc}`).value;
+
+                diameters.push(diam);
+
+                let rate = '';
+                if (status === 'hemolysis') {
+                    rate = '파열';
+                } else if (diam > 0) {
+                    const change = ((diam - normalDiam) / normalDiam * 100).toFixed(0);
+                    rate = change >= 0 ? `+${change}%` : `${change}%`;
+                } else {
+                    rate = '-';
+                }
+
+                document.getElementById(`rbc-rate-${conc}`).textContent = rate;
+            });
+
+            // Update chart
+            updateRBCChart(diameters);
+
+            // Update summary
+            const validDiams = diameters.filter(d => d > 0);
+            if (validDiams.length > 0) {
+                const maxShrink = Math.min(...validDiams);
+                const shrinkRate = ((maxShrink - normalDiam) / normalDiam * 100).toFixed(0);
+                document.getElementById('rbc-max-shrink').textContent = `${shrinkRate}%`;
+            }
+        }
+
+        // Charts
+        let plantChart, rbcChart, comparisonChart;
+
+        function initCharts() {
+            // Plant Chart
+            const plantCtx = document.getElementById('plantChart').getContext('2d');
+            plantChart = new Chart(plantCtx, {
+                type: 'bar',
+                data: {
+                    labels: ['0%', '1%', '3%', '5%', '10%'],
+                    datasets: [{
+                        label: '원형질 분리도 (D)',
+                        data: [0, 0.02, 0.20, 0.45, 0.65],
+                        backgroundColor: [
+                            'rgba(79, 195, 247, 0.7)',
+                            'rgba(129, 199, 132, 0.7)',
+                            'rgba(255, 213, 79, 0.7)',
+                            'rgba(255, 138, 101, 0.7)',
+                            'rgba(229, 115, 115, 0.7)'
+                        ],
+                        borderColor: [
+                            '#4FC3F7',
+                            '#81C784',
+                            '#FFD54F',
+                            '#FF8A65',
+                            '#E57373'
+                        ],
+                        borderWidth: 2,
+                        borderRadius: 5
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            labels: { color: '#fff' }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 1,
+                            grid: { color: 'rgba(255,255,255,0.1)' },
+                            ticks: { color: '#b8b8b8' },
+                            title: {
+                                display: true,
+                                text: '분리도 (D)',
+                                color: '#b8b8b8'
+                            }
+                        },
+                        x: {
+                            grid: { color: 'rgba(255,255,255,0.1)' },
+                            ticks: { color: '#b8b8b8' },
+                            title: {
+                                display: true,
+                                text: 'NaCl 농도 (%)',
+                                color: '#b8b8b8'
+                            }
+                        }
+                    }
+                }
+            });
+
+            // RBC Chart
+            const rbcCtx = document.getElementById('rbcChart').getContext('2d');
+            rbcChart = new Chart(rbcCtx, {
+                type: 'line',
+                data: {
+                    labels: ['0%', '1%', '3%', '5%', '10%'],
+                    datasets: [{
+                        label: '적혈구 직경 (μm)',
+                        data: [0, 7.5, 6.5, 5.5, 4.5],
+                        borderColor: '#EF5350',
+                        backgroundColor: 'rgba(239, 83, 80, 0.2)',
+                        borderWidth: 3,
+                        fill: true,
+                        tension: 0.4,
+                        pointRadius: 6,
+                        pointBackgroundColor: '#EF5350'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            labels: { color: '#fff' }
+                        },
+                        annotation: {
+                            annotations: {
+                                line1: {
+                                    type: 'line',
+                                    yMin: 7.5,
+                                    yMax: 7.5,
+                                    borderColor: 'rgba(76, 175, 80, 0.7)',
+                                    borderWidth: 2,
+                                    borderDash: [5, 5],
+                                    label: {
+                                        display: true,
+                                        content: '정상 직경 (7.5μm)',
+                                        color: '#81C784'
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 10,
+                            grid: { color: 'rgba(255,255,255,0.1)' },
+                            ticks: { color: '#b8b8b8' },
+                            title: {
+                                display: true,
+                                text: '직경 (μm)',
+                                color: '#b8b8b8'
+                            }
+                        },
+                        x: {
+                            grid: { color: 'rgba(255,255,255,0.1)' },
+                            ticks: { color: '#b8b8b8' },
+                            title: {
+                                display: true,
+                                text: 'NaCl 농도 (%)',
+                                color: '#b8b8b8'
+                            }
+                        }
+                    }
+                }
+            });
+
+            // Comparison Chart
+            const compCtx = document.getElementById('comparisonChart').getContext('2d');
+            comparisonChart = new Chart(compCtx, {
+                type: 'line',
+                data: {
+                    labels: ['0%', '1%', '3%', '5%', '10%'],
+                    datasets: [
+                        {
+                            label: '식물 세포 원형질 분리도 (D)',
+                            data: [0, 0.02, 0.20, 0.45, 0.65],
+                            borderColor: '#4CAF50',
+                            backgroundColor: 'rgba(76, 175, 80, 0.2)',
+                            borderWidth: 3,
+                            fill: true,
+                            tension: 0.4,
+                            yAxisID: 'y'
+                        },
+                        {
+                            label: '적혈구 직경 변화율 (%)',
+                            data: [null, 0, -13, -27, -40],
+                            borderColor: '#EF5350',
+                            backgroundColor: 'rgba(239, 83, 80, 0.2)',
+                            borderWidth: 3,
+                            fill: true,
+                            tension: 0.4,
+                            yAxisID: 'y1'
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: {
+                        mode: 'index',
+                        intersect: false
+                    },
+                    plugins: {
+                        legend: {
+                            labels: { color: '#fff' }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            type: 'linear',
+                            display: true,
+                            position: 'left',
+                            beginAtZero: true,
+                            max: 1,
+                            grid: { color: 'rgba(255,255,255,0.1)' },
+                            ticks: { color: '#4CAF50' },
+                            title: {
+                                display: true,
+                                text: '원형질 분리도 (D)',
+                                color: '#4CAF50'
+                            }
+                        },
+                        y1: {
+                            type: 'linear',
+                            display: true,
+                            position: 'right',
+                            min: -50,
+                            max: 20,
+                            grid: { drawOnChartArea: false },
+                            ticks: { color: '#EF5350' },
+                            title: {
+                                display: true,
+                                text: '직경 변화율 (%)',
+                                color: '#EF5350'
+                            }
+                        },
+                        x: {
+                            grid: { color: 'rgba(255,255,255,0.1)' },
+                            ticks: { color: '#b8b8b8' },
+                            title: {
+                                display: true,
+                                text: 'NaCl 농도 (%)',
+                                color: '#b8b8b8'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function updatePlantChart(dValues) {
+            plantChart.data.datasets[0].data = dValues;
+            plantChart.update();
+            updateComparisonChart();
+        }
+
+        function updateRBCChart(diameters) {
+            rbcChart.data.datasets[0].data = diameters;
+            rbcChart.update();
+            updateComparisonChart();
+        }
+
+        function updateComparisonChart() {
+            const plantData = [];
+            const rbcData = [];
+            const concentrations = [0, 1, 3, 5, 10];
+            const normalDiam = 7.5;
+
+            concentrations.forEach(conc => {
+                const orig = parseFloat(document.getElementById(`plant-orig-${conc}`).value) || 0;
+                const shrink = parseFloat(document.getElementById(`plant-shrink-${conc}`).value) || 0;
+                const d = orig > 0 ? (orig - shrink) / orig : 0;
+                plantData.push(Math.max(0, Math.min(1, d)));
+
+                const diam = parseFloat(document.getElementById(`rbc-diam-${conc}`).value) || 0;
+                const status = document.getElementById(`rbc-status-${conc}`).value;
+                if (status === 'hemolysis' || diam === 0) {
+                    rbcData.push(null);
+                } else {
+                    rbcData.push(((diam - normalDiam) / normalDiam * 100));
+                }
+            });
+
+            comparisonChart.data.datasets[0].data = plantData;
+            comparisonChart.data.datasets[1].data = rbcData;
+            comparisonChart.update();
+        }
+
+        // Reset Functions
+        function resetPlantData() {
+            const defaults = {
+                0: { orig: 10000, shrink: 10000 },
+                1: { orig: 10000, shrink: 9800 },
+                3: { orig: 10000, shrink: 8000 },
+                5: { orig: 10000, shrink: 5500 },
+                10: { orig: 10000, shrink: 3500 }
+            };
+
+            Object.keys(defaults).forEach(conc => {
+                document.getElementById(`plant-orig-${conc}`).value = defaults[conc].orig;
+                document.getElementById(`plant-shrink-${conc}`).value = defaults[conc].shrink;
+            });
+
+            calculatePlantD();
+        }
+
+        function resetRBCData() {
+            const defaults = {
+                0: { diam: 0, status: 'hemolysis' },
+                1: { diam: 7.5, status: 'normal' },
+                3: { diam: 6.5, status: 'crenated' },
+                5: { diam: 5.5, status: 'severe' },
+                10: { diam: 4.5, status: 'severe' }
+            };
+
+            Object.keys(defaults).forEach(conc => {
+                document.getElementById(`rbc-diam-${conc}`).value = defaults[conc].diam;
+                document.getElementById(`rbc-status-${conc}`).value = defaults[conc].status;
+            });
+
+            calculateRBCStatus();
+        }
+
+        // Image Upload
+        function handlePlantImageUpload(event) {
+            const files = event.target.files;
+            const preview = document.getElementById('plant-image-preview');
+            preview.innerHTML = '';
+
+            Array.from(files).forEach((file, index) => {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const div = document.createElement('div');
+                    div.style.position = 'relative';
+                    div.innerHTML = `
+                        <img src="${e.target.result}" class="uploaded-image" style="width: 200px; height: 150px; object-fit: cover;">
+                        <input type="text" placeholder="농도 %" style="width: 100%; margin-top: 5px; padding: 5px; border-radius: 5px; border: 1px solid rgba(255,255,255,0.2); background: var(--bg-input); color: white;">
+                    `;
+                    preview.appendChild(div);
+                };
+                reader.readAsDataURL(file);
+            });
+        }
+
+        // Export Functions
+        function exportToCSV() {
+            const concentrations = [0, 1, 3, 5, 10];
+            let csv = '농도(%),세포원래면적(μm²),원형질면적(μm²),분리도(D),적혈구직경(μm),적혈구상태\n';
+
+            concentrations.forEach(conc => {
+                const orig = document.getElementById(`plant-orig-${conc}`).value;
+                const shrink = document.getElementById(`plant-shrink-${conc}`).value;
+                const d = document.getElementById(`plant-d-${conc}`).textContent;
+                const diam = document.getElementById(`rbc-diam-${conc}`).value;
+                const status = document.getElementById(`rbc-status-${conc}`).value;
+
+                csv += `${conc},${orig},${shrink},${d},${diam},${status}\n`;
+            });
+
+            const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = '원형질분리_실험결과.csv';
+            link.click();
+        }
+
+        function exportToPDF() {
+            alert('PDF 내보내기 기능\n\n브라우저의 인쇄 기능(Ctrl+P)을 사용하여 PDF로 저장하세요.\n"PDF로 저장" 옵션을 선택하면 됩니다.');
+            window.print();
+        }
+
+        function printReport() {
+            window.print();
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            initCharts();
+            calculatePlantD();
+            calculateRBCStatus();
+        });
+    </script>
+</body>
+</html>
