@@ -741,6 +741,33 @@
             border-radius: 8px;
             font-size: 0.8rem;
         }
+
+        /* Calibration panels */
+        .calib-panel {
+            padding: 15px;
+            background: var(--bg-input);
+            border-radius: 10px;
+            margin-top: 15px;
+        }
+
+        .calibration-method {
+            transition: all 0.3s ease;
+        }
+
+        .calibration-method:hover {
+            background: rgba(0, 217, 255, 0.1) !important;
+            transform: translateY(-2px);
+        }
+
+        #tool-scalebar {
+            background: linear-gradient(135deg, var(--accent), #0099cc);
+            color: white;
+            border-color: var(--accent);
+        }
+
+        #tool-scalebar:hover, #tool-scalebar.active {
+            box-shadow: 0 0 15px rgba(0, 217, 255, 0.4);
+        }
     </style>
 </head>
 <body>
@@ -782,19 +809,110 @@
                     현미경 이미지를 업로드하면 자동으로 세포를 감지하고 면적을 계산합니다.
                 </p>
 
-                <!-- Calibration -->
-                <div class="calibration-input">
-                    <label>배율 설정:</label>
-                    <select id="magnification" onchange="updateCalibration()">
-                        <option value="100">100x</option>
-                        <option value="400" selected>400x</option>
-                        <option value="1000">1000x</option>
-                    </select>
-                    <label style="margin-left: 20px;">1px =</label>
-                    <input type="number" id="pixelToUm" value="0.25" step="0.01"> μm
-                    <button class="btn btn-primary" onclick="showCalibrationHelp()" style="margin-left: auto; padding: 8px 15px;">
-                        📏 캘리브레이션 도움말
-                    </button>
+                <!-- Scale Bar Calibration -->
+                <div class="card" style="background: linear-gradient(135deg, rgba(0, 217, 255, 0.1), rgba(255, 107, 157, 0.05)); margin-bottom: 20px; padding: 20px;">
+                    <h3 style="margin: 0 0 15px 0; display: flex; align-items: center; gap: 10px;">
+                        <span>📏</span> 축척(Scale Bar) 캘리브레이션
+                        <span class="auto-badge">AUTO</span>
+                    </h3>
+
+                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+                        <!-- Method 1: Auto Detect -->
+                        <div class="calibration-method" id="calibMethod1" onclick="setCalibrationMethod('auto')" style="padding: 15px; background: var(--bg-input); border-radius: 10px; cursor: pointer; border: 2px solid var(--accent); text-align: center;">
+                            <div style="font-size: 2rem; margin-bottom: 8px;">🤖</div>
+                            <div style="font-weight: 600; margin-bottom: 5px;">자동 감지</div>
+                            <small style="color: var(--text-secondary);">이미지에서 축척 자동 인식</small>
+                        </div>
+
+                        <!-- Method 2: Draw Scale Bar -->
+                        <div class="calibration-method" id="calibMethod2" onclick="setCalibrationMethod('draw')" style="padding: 15px; background: var(--bg-input); border-radius: 10px; cursor: pointer; border: 2px solid transparent; text-align: center;">
+                            <div style="font-size: 2rem; margin-bottom: 8px;">✏️</div>
+                            <div style="font-weight: 600; margin-bottom: 5px;">직접 그리기</div>
+                            <small style="color: var(--text-secondary);">축척 위에 선 그리기</small>
+                        </div>
+
+                        <!-- Method 3: Manual Input -->
+                        <div class="calibration-method" id="calibMethod3" onclick="setCalibrationMethod('manual')" style="padding: 15px; background: var(--bg-input); border-radius: 10px; cursor: pointer; border: 2px solid transparent; text-align: center;">
+                            <div style="font-size: 2rem; margin-bottom: 8px;">⌨️</div>
+                            <div style="font-weight: 600; margin-bottom: 5px;">수동 입력</div>
+                            <small style="color: var(--text-secondary);">배율/값 직접 입력</small>
+                        </div>
+                    </div>
+
+                    <!-- Auto Detect Panel -->
+                    <div id="calibPanelAuto" class="calib-panel">
+                        <div style="display: flex; align-items: center; gap: 15px; flex-wrap: wrap;">
+                            <button class="btn btn-accent" onclick="detectScaleBar()" id="detectScaleBtn" disabled>
+                                🔍 축척 자동 감지
+                            </button>
+                            <div id="scaleDetectResult" style="color: var(--text-secondary);">
+                                이미지를 업로드하면 하단의 축척을 자동으로 인식합니다
+                            </div>
+                        </div>
+                        <div id="scaleBarPreview" style="margin-top: 15px; display: none;">
+                            <div style="background: var(--bg-dark); padding: 10px; border-radius: 8px; display: inline-block;">
+                                <img id="scaleBarCrop" style="max-height: 60px; border-radius: 4px;">
+                            </div>
+                            <div style="margin-top: 10px; display: flex; align-items: center; gap: 10px;">
+                                <span style="color: var(--text-secondary);">감지된 값:</span>
+                                <input type="number" id="detectedScaleValue" value="100" style="width: 80px; padding: 8px; border-radius: 6px; background: var(--bg-dark); border: 1px solid var(--glass-border); color: white; text-align: center;">
+                                <span>μm =</span>
+                                <span id="detectedScalePixels" style="color: var(--accent); font-weight: 600;">- px</span>
+                                <button class="btn btn-success" onclick="applyDetectedScale()" style="padding: 8px 15px;">적용</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Draw Scale Bar Panel -->
+                    <div id="calibPanelDraw" class="calib-panel" style="display: none;">
+                        <div style="display: flex; align-items: center; gap: 15px; flex-wrap: wrap;">
+                            <button class="btn btn-purple" onclick="startScaleBarDraw()" id="drawScaleBtn" disabled>
+                                ✏️ 축척 위에 선 그리기 시작
+                            </button>
+                            <div style="display: flex; align-items: center; gap: 10px;">
+                                <span style="color: var(--text-secondary);">그린 선의 실제 길이:</span>
+                                <input type="number" id="drawnScaleValue" value="100" style="width: 80px; padding: 8px; border-radius: 6px; background: var(--bg-dark); border: 1px solid var(--glass-border); color: white; text-align: center;">
+                                <span>μm</span>
+                            </div>
+                        </div>
+                        <div id="drawScaleStatus" style="margin-top: 10px; color: var(--text-secondary);">
+                            이미지를 업로드한 후 축척 바 위에 선을 그려주세요
+                        </div>
+                        <div id="drawScaleResult" style="margin-top: 10px; display: none;">
+                            <span>그린 선 길이: <strong id="drawnPixels" style="color: var(--accent);">0</strong> px</span>
+                            <span style="margin-left: 20px;">→ 1px = <strong id="calculatedUmPerPx" style="color: var(--accent2);">0</strong> μm</span>
+                            <button class="btn btn-success" onclick="applyDrawnScale()" style="margin-left: 15px; padding: 8px 15px;">적용</button>
+                        </div>
+                    </div>
+
+                    <!-- Manual Input Panel -->
+                    <div id="calibPanelManual" class="calib-panel" style="display: none;">
+                        <div style="display: flex; align-items: center; gap: 15px; flex-wrap: wrap;">
+                            <label>배율:</label>
+                            <select id="magnification" onchange="updateCalibration()" style="padding: 8px 15px; border-radius: 6px; background: var(--bg-dark); border: 1px solid var(--glass-border); color: white;">
+                                <option value="40">40x</option>
+                                <option value="100">100x</option>
+                                <option value="400" selected>400x</option>
+                                <option value="1000">1000x</option>
+                            </select>
+                            <label style="margin-left: 15px;">1px =</label>
+                            <input type="number" id="pixelToUm" value="0.25" step="0.001" style="width: 100px; padding: 8px; border-radius: 6px; background: var(--bg-dark); border: 1px solid var(--glass-border); color: white; text-align: center;">
+                            <span>μm</span>
+                        </div>
+                        <div style="margin-top: 15px; padding: 12px; background: var(--bg-dark); border-radius: 8px; color: var(--text-secondary); font-size: 0.9rem;">
+                            <strong>일반적인 현미경 설정:</strong><br>
+                            • 40x: ~2.5 μm/px | 100x: ~1.0 μm/px | 400x: ~0.25 μm/px | 1000x: ~0.1 μm/px
+                        </div>
+                    </div>
+
+                    <!-- Current Calibration Status -->
+                    <div style="margin-top: 15px; padding: 12px; background: rgba(0, 217, 255, 0.1); border-radius: 8px; display: flex; align-items: center; justify-content: space-between;">
+                        <div>
+                            <span style="color: var(--text-secondary);">현재 캘리브레이션:</span>
+                            <strong id="currentCalibDisplay" style="color: var(--accent); margin-left: 10px;">1px = 0.25 μm</strong>
+                        </div>
+                        <div id="calibStatus" class="status status-warning">⚠️ 미확인</div>
+                    </div>
                 </div>
 
                 <div class="grid-2">
@@ -820,6 +938,7 @@
                                 <button class="tool-btn active" onclick="setTool('auto')" id="tool-auto">🤖 자동 감지</button>
                                 <button class="tool-btn" onclick="setTool('manual')" id="tool-manual">✏️ 수동 측정</button>
                                 <button class="tool-btn" onclick="setTool('polygon')" id="tool-polygon">📐 다각형</button>
+                                <button class="tool-btn" onclick="setTool('scalebar')" id="tool-scalebar">📏 축척 그리기</button>
                                 <button class="tool-btn" onclick="clearMeasurements()">🗑️ 초기화</button>
                             </div>
                         </div>
@@ -1340,8 +1459,321 @@
             currentTool: 'auto',
             imageLoaded: false,
             measurements: [],
-            calibration: 0.25 // μm per pixel at 400x
+            calibration: 0.25, // μm per pixel at 400x
+            calibrationMethod: 'auto',
+            calibrationVerified: false,
+            scaleBarDrawing: {
+                active: false,
+                startX: null,
+                startY: null,
+                endX: null,
+                endY: null,
+                pixelLength: 0
+            }
         };
+
+        // ========== SCALE BAR CALIBRATION ==========
+        function setCalibrationMethod(method) {
+            state.calibrationMethod = method;
+
+            // Update UI
+            document.querySelectorAll('.calibration-method').forEach(el => {
+                el.style.borderColor = 'transparent';
+            });
+            document.getElementById('calibMethod' + (method === 'auto' ? '1' : method === 'draw' ? '2' : '3')).style.borderColor = 'var(--accent)';
+
+            // Show/hide panels
+            document.getElementById('calibPanelAuto').style.display = method === 'auto' ? 'block' : 'none';
+            document.getElementById('calibPanelDraw').style.display = method === 'draw' ? 'block' : 'none';
+            document.getElementById('calibPanelManual').style.display = method === 'manual' ? 'block' : 'none';
+        }
+
+        function detectScaleBar() {
+            if (!state.imageLoaded) {
+                showNotification('먼저 이미지를 업로드하세요', 'warning');
+                return;
+            }
+
+            const img = document.getElementById('previewImage');
+            const canvas = document.createElement('canvas');
+            canvas.width = img.naturalWidth;
+            canvas.height = img.naturalHeight;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0);
+
+            // Focus on bottom 15% of image where scale bars usually are
+            const bottomRegion = Math.floor(img.naturalHeight * 0.85);
+            const cropHeight = img.naturalHeight - bottomRegion;
+
+            // Get image data from bottom region
+            const imageData = ctx.getImageData(0, bottomRegion, img.naturalWidth, cropHeight);
+
+            // Create preview of bottom region
+            const previewCanvas = document.createElement('canvas');
+            previewCanvas.width = img.naturalWidth;
+            previewCanvas.height = cropHeight;
+            const previewCtx = previewCanvas.getContext('2d');
+            previewCtx.putImageData(imageData, 0, 0);
+
+            document.getElementById('scaleBarCrop').src = previewCanvas.toDataURL();
+            document.getElementById('scaleBarPreview').style.display = 'block';
+
+            // Detect horizontal lines (scale bars are usually horizontal)
+            const scaleBarInfo = analyzeScaleBar(imageData, img.naturalWidth, cropHeight);
+
+            if (scaleBarInfo.found) {
+                document.getElementById('detectedScalePixels').textContent = scaleBarInfo.pixelLength + ' px';
+                document.getElementById('scaleDetectResult').innerHTML =
+                    `<span class="status status-good">✓ 축척 감지됨</span> - 약 ${scaleBarInfo.pixelLength}px 길이의 축척 바 발견`;
+
+                state.scaleBarDrawing.pixelLength = scaleBarInfo.pixelLength;
+
+                // Try to detect scale value from common patterns
+                const estimatedValue = estimateScaleValue(scaleBarInfo.pixelLength, img.naturalWidth);
+                document.getElementById('detectedScaleValue').value = estimatedValue;
+
+                // Draw detected scale bar on main canvas
+                const analysisCanvas = document.getElementById('analysisCanvas');
+                const actx = analysisCanvas.getContext('2d');
+                actx.strokeStyle = '#00d9ff';
+                actx.lineWidth = 3;
+                actx.setLineDash([5, 5]);
+                actx.beginPath();
+                actx.moveTo(scaleBarInfo.x1, bottomRegion + scaleBarInfo.y);
+                actx.lineTo(scaleBarInfo.x2, bottomRegion + scaleBarInfo.y);
+                actx.stroke();
+                actx.setLineDash([]);
+
+                // Add label
+                actx.fillStyle = '#00d9ff';
+                actx.font = 'bold 14px sans-serif';
+                actx.fillText(`${scaleBarInfo.pixelLength}px`, scaleBarInfo.x1, bottomRegion + scaleBarInfo.y - 10);
+
+            } else {
+                document.getElementById('scaleDetectResult').innerHTML =
+                    `<span class="status status-warning">⚠ 자동 감지 실패</span> - "직접 그리기" 방법을 사용해주세요`;
+            }
+        }
+
+        function analyzeScaleBar(imageData, width, height) {
+            const data = imageData.data;
+
+            // Convert to grayscale and detect edges
+            const gray = new Uint8Array(width * height);
+            for (let i = 0; i < data.length; i += 4) {
+                gray[i/4] = (data[i] * 0.299 + data[i+1] * 0.587 + data[i+2] * 0.114);
+            }
+
+            // Look for horizontal lines (consecutive dark or light pixels)
+            let bestLine = { found: false, pixelLength: 0, x1: 0, x2: 0, y: 0 };
+
+            for (let y = Math.floor(height * 0.3); y < height - 10; y++) {
+                let lineStart = -1;
+                let lineLength = 0;
+                let maxLineLength = 0;
+                let maxLineStart = 0;
+                let prevValue = gray[y * width];
+
+                for (let x = 1; x < width; x++) {
+                    const currValue = gray[y * width + x];
+                    const isDark = currValue < 80;
+                    const wasark = prevValue < 80;
+
+                    // Detect dark lines (most scale bars are dark)
+                    if (isDark) {
+                        if (lineStart === -1) lineStart = x;
+                        lineLength++;
+                    } else {
+                        if (lineLength > maxLineLength && lineLength > 30 && lineLength < width * 0.5) {
+                            maxLineLength = lineLength;
+                            maxLineStart = lineStart;
+                        }
+                        lineStart = -1;
+                        lineLength = 0;
+                    }
+                    prevValue = currValue;
+                }
+
+                if (maxLineLength > bestLine.pixelLength && maxLineLength > 50) {
+                    bestLine = {
+                        found: true,
+                        pixelLength: maxLineLength,
+                        x1: maxLineStart,
+                        x2: maxLineStart + maxLineLength,
+                        y: y
+                    };
+                }
+            }
+
+            // Also try to detect white/light lines on dark background
+            if (!bestLine.found || bestLine.pixelLength < 50) {
+                for (let y = Math.floor(height * 0.3); y < height - 10; y++) {
+                    let lineStart = -1;
+                    let lineLength = 0;
+
+                    for (let x = 1; x < width; x++) {
+                        const currValue = gray[y * width + x];
+                        const isLight = currValue > 200;
+
+                        if (isLight) {
+                            if (lineStart === -1) lineStart = x;
+                            lineLength++;
+                        } else {
+                            if (lineLength > bestLine.pixelLength && lineLength > 30 && lineLength < width * 0.5) {
+                                bestLine = {
+                                    found: true,
+                                    pixelLength: lineLength,
+                                    x1: lineStart,
+                                    x2: lineStart + lineLength,
+                                    y: y
+                                };
+                            }
+                            lineStart = -1;
+                            lineLength = 0;
+                        }
+                    }
+                }
+            }
+
+            return bestLine;
+        }
+
+        function estimateScaleValue(pixelLength, imageWidth) {
+            // Common scale bar values based on image size and scale bar proportion
+            const proportion = pixelLength / imageWidth;
+
+            // Estimate based on common microscope setups
+            if (proportion < 0.1) return 50;
+            if (proportion < 0.15) return 100;
+            if (proportion < 0.25) return 200;
+            if (proportion < 0.35) return 500;
+            return 1000;
+        }
+
+        function applyDetectedScale() {
+            const scaleValue = parseFloat(document.getElementById('detectedScaleValue').value);
+            const pixelLength = state.scaleBarDrawing.pixelLength;
+
+            if (pixelLength > 0 && scaleValue > 0) {
+                state.calibration = scaleValue / pixelLength;
+                document.getElementById('pixelToUm').value = state.calibration.toFixed(4);
+                updateCalibrationDisplay();
+                state.calibrationVerified = true;
+                showNotification(`캘리브레이션 적용: 1px = ${state.calibration.toFixed(4)} μm`);
+            }
+        }
+
+        function startScaleBarDraw() {
+            if (!state.imageLoaded) {
+                showNotification('먼저 이미지를 업로드하세요', 'warning');
+                return;
+            }
+
+            state.scaleBarDrawing.active = true;
+            state.currentTool = 'scalebar';
+            document.getElementById('drawScaleStatus').innerHTML =
+                '<span style="color: var(--accent);">🎯 이미지의 축척 바 시작점을 클릭하세요</span>';
+            document.getElementById('drawScaleBtn').textContent = '🔴 그리기 모드 활성화됨';
+            document.getElementById('drawScaleBtn').classList.add('active');
+
+            // Update tool buttons
+            document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById('tool-scalebar')?.classList.add('active');
+
+            showNotification('축척 바의 시작점을 클릭하세요');
+        }
+
+        function handleScaleBarClick(x, y) {
+            const sb = state.scaleBarDrawing;
+            const canvas = document.getElementById('analysisCanvas');
+            const ctx = canvas.getContext('2d');
+
+            if (sb.startX === null) {
+                // First click - start point
+                sb.startX = x;
+                sb.startY = y;
+
+                ctx.fillStyle = '#ff6b9d';
+                ctx.beginPath();
+                ctx.arc(x, y, 8, 0, Math.PI * 2);
+                ctx.fill();
+
+                document.getElementById('drawScaleStatus').innerHTML =
+                    '<span style="color: var(--accent2);">🎯 이제 축척 바의 끝점을 클릭하세요</span>';
+            } else {
+                // Second click - end point
+                sb.endX = x;
+                sb.endY = y;
+
+                // Calculate distance
+                const dx = sb.endX - sb.startX;
+                const dy = sb.endY - sb.startY;
+                sb.pixelLength = Math.sqrt(dx * dx + dy * dy);
+
+                // Draw the line
+                ctx.strokeStyle = '#ff6b9d';
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.moveTo(sb.startX, sb.startY);
+                ctx.lineTo(sb.endX, sb.endY);
+                ctx.stroke();
+
+                ctx.fillStyle = '#ff6b9d';
+                ctx.beginPath();
+                ctx.arc(x, y, 8, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Show result
+                document.getElementById('drawnPixels').textContent = Math.round(sb.pixelLength);
+                const scaleValue = parseFloat(document.getElementById('drawnScaleValue').value);
+                const umPerPx = scaleValue / sb.pixelLength;
+                document.getElementById('calculatedUmPerPx').textContent = umPerPx.toFixed(4);
+                document.getElementById('drawScaleResult').style.display = 'block';
+
+                document.getElementById('drawScaleStatus').innerHTML =
+                    `<span class="status status-good">✓ 측정 완료!</span> ${Math.round(sb.pixelLength)}px = ${scaleValue}μm`;
+
+                document.getElementById('drawScaleBtn').textContent = '✏️ 축척 위에 선 그리기 시작';
+                document.getElementById('drawScaleBtn').classList.remove('active');
+
+                sb.active = false;
+                state.currentTool = 'auto';
+            }
+        }
+
+        function applyDrawnScale() {
+            const sb = state.scaleBarDrawing;
+            const scaleValue = parseFloat(document.getElementById('drawnScaleValue').value);
+
+            if (sb.pixelLength > 0 && scaleValue > 0) {
+                state.calibration = scaleValue / sb.pixelLength;
+                document.getElementById('pixelToUm').value = state.calibration.toFixed(4);
+                updateCalibrationDisplay();
+                state.calibrationVerified = true;
+                showNotification(`캘리브레이션 적용: 1px = ${state.calibration.toFixed(4)} μm`);
+
+                // Reset drawing state
+                sb.startX = null;
+                sb.startY = null;
+                sb.endX = null;
+                sb.endY = null;
+            }
+        }
+
+        function updateCalibrationDisplay() {
+            const umPerPx = state.calibration;
+            document.getElementById('currentCalibDisplay').textContent = `1px = ${umPerPx.toFixed(4)} μm`;
+            document.getElementById('pixelToUm').value = umPerPx.toFixed(4);
+
+            const statusEl = document.getElementById('calibStatus');
+            if (state.calibrationVerified) {
+                statusEl.className = 'status status-good';
+                statusEl.textContent = '✓ 확인됨';
+            } else {
+                statusEl.className = 'status status-warning';
+                statusEl.textContent = '⚠️ 미확인';
+            }
+        }
 
         // ========== TAB SWITCHING ==========
         function switchTab(tab) {
@@ -1369,6 +1801,13 @@
                     setupCanvas();
                     state.imageLoaded = true;
                     document.getElementById('analyzeBtn').disabled = false;
+                    document.getElementById('detectScaleBtn').disabled = false;
+                    document.getElementById('drawScaleBtn').disabled = false;
+
+                    // Auto-detect scale bar
+                    setTimeout(() => {
+                        detectScaleBar();
+                    }, 500);
                 };
             };
             reader.readAsDataURL(file);
@@ -1391,14 +1830,19 @@
         }
 
         function handleCanvasClick(e) {
-            if (state.currentTool === 'auto') return;
-
             const canvas = e.target;
             const rect = canvas.getBoundingClientRect();
             const scaleX = canvas.width / rect.width;
             const scaleY = canvas.height / rect.height;
             const x = (e.clientX - rect.left) * scaleX;
             const y = (e.clientY - rect.top) * scaleY;
+
+            if (state.currentTool === 'scalebar' || state.scaleBarDrawing.active) {
+                handleScaleBarClick(x, y);
+                return;
+            }
+
+            if (state.currentTool === 'auto') return;
 
             if (state.currentTool === 'manual') {
                 addManualPoint(x, y);
@@ -1418,17 +1862,36 @@
         function setTool(tool) {
             state.currentTool = tool;
             document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
-            document.getElementById('tool-' + tool).classList.add('active');
+            const toolBtn = document.getElementById('tool-' + tool);
+            if (toolBtn) toolBtn.classList.add('active');
+
+            if (tool === 'scalebar') {
+                startScaleBarDraw();
+            } else {
+                state.scaleBarDrawing.active = false;
+            }
         }
 
         function clearMeasurements() {
             state.measurements = [];
+            state.scaleBarDrawing.startX = null;
+            state.scaleBarDrawing.startY = null;
+            state.scaleBarDrawing.endX = null;
+            state.scaleBarDrawing.endY = null;
+            state.scaleBarDrawing.active = false;
+
             if (state.imageLoaded) setupCanvas();
             document.getElementById('result-cellCount').textContent = '-';
             document.getElementById('result-avgCellArea').textContent = '- μm²';
             document.getElementById('result-avgPlasmaArea').textContent = '- μm²';
             document.getElementById('result-plasmolysisD').textContent = '-';
             document.getElementById('result-status').innerHTML = '-';
+
+            // Reset scale bar UI
+            document.getElementById('drawScaleResult').style.display = 'none';
+            document.getElementById('drawScaleStatus').innerHTML = '이미지를 업로드한 후 축척 바 위에 선을 그려주세요';
+            document.getElementById('drawScaleBtn').textContent = '✏️ 축척 위에 선 그리기 시작';
+            document.getElementById('drawScaleBtn').classList.remove('active');
         }
 
         function runAutoAnalysis() {
@@ -1599,13 +2062,10 @@
 
         function updateCalibration() {
             const mag = document.getElementById('magnification').value;
-            const pixelToUm = { '100': 1.0, '400': 0.25, '1000': 0.1 };
-            document.getElementById('pixelToUm').value = pixelToUm[mag];
-            state.calibration = pixelToUm[mag];
-        }
-
-        function showCalibrationHelp() {
-            alert('캘리브레이션 방법:\n\n1. 알려진 크기의 마이크로미터 눈금자를 촬영합니다\n2. 이미지에서 눈금 간격의 픽셀 수를 측정합니다\n3. 실제 크기(μm) ÷ 픽셀 수 = 1px당 μm값\n\n예시 (400x 배율):\n100μm 눈금 = 400픽셀 → 1px = 0.25μm');
+            const pixelToUm = { '40': 2.5, '100': 1.0, '400': 0.25, '1000': 0.1 };
+            state.calibration = pixelToUm[mag] || 0.25;
+            document.getElementById('pixelToUm').value = state.calibration;
+            updateCalibrationDisplay();
         }
 
         // Drag and drop
