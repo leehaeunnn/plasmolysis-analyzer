@@ -4,8 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>원형질 분리 실험 분석 도구 | Plasmolysis Analyzer Pro</title>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/regression@2.0.1/dist/regression.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
     <style>
         :root {
             --primary: #2E7D32;
@@ -940,6 +939,7 @@
                                 <button class="tool-btn" onclick="setTool('polygon')" id="tool-polygon">📐 다각형</button>
                                 <button class="tool-btn" onclick="setTool('scalebar')" id="tool-scalebar">📏 축척 그리기</button>
                                 <button class="tool-btn" onclick="clearMeasurements()">🗑️ 초기화</button>
+                                <button class="tool-btn" onclick="changeImage()" style="background: var(--accent); color: var(--bg-dark);">📷 새 이미지</button>
                             </div>
                         </div>
                     </div>
@@ -1780,10 +1780,34 @@
             document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
             document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
             document.getElementById(tab + '-tab').classList.add('active');
-            event.target.closest('.tab-btn').classList.add('active');
+
+            // Find and activate the correct button by matching onclick attribute
+            document.querySelectorAll('.tab-btn').forEach(b => {
+                if (b.getAttribute('onclick') && b.getAttribute('onclick').includes("'" + tab + "'")) {
+                    b.classList.add('active');
+                }
+            });
 
             if (tab === 'compare') updateComparison();
             if (tab === 'stats') updateStatistics();
+
+            // Resize charts when their tab becomes visible
+            resizeChartsInTab(tab);
+        }
+
+        function resizeChartsInTab(tab) {
+            setTimeout(() => {
+                if (tab === 'plant' && plantChart) plantChart.resize();
+                if (tab === 'blood' && rbcChart) rbcChart.resize();
+                if (tab === 'compare') {
+                    if (plantCompareChart) plantCompareChart.resize();
+                    if (rbcCompareChart) rbcCompareChart.resize();
+                }
+                if (tab === 'stats') {
+                    if (regressionChart) regressionChart.resize();
+                    if (residualChart) residualChart.resize();
+                }
+            }, 50);
         }
 
         // ========== IMAGE ANALYSIS ==========
@@ -1870,6 +1894,41 @@
             } else {
                 state.scaleBarDrawing.active = false;
             }
+        }
+
+        function changeImage() {
+            // Create a temporary file input to pick a new image
+            const tempInput = document.createElement('input');
+            tempInput.type = 'file';
+            tempInput.accept = 'image/*';
+            tempInput.onchange = function(e) {
+                const file = e.target.files[0];
+                if (!file) return;
+
+                // Clear only image-related state, preserve plant/blood/stats data
+                state.measurements = [];
+                state.scaleBarDrawing.startX = null;
+                state.scaleBarDrawing.startY = null;
+                state.scaleBarDrawing.endX = null;
+                state.scaleBarDrawing.endY = null;
+                state.scaleBarDrawing.active = false;
+
+                // Reset image analysis results only
+                document.getElementById('result-cellCount').textContent = '-';
+                document.getElementById('result-avgCellArea').textContent = '- μm²';
+                document.getElementById('result-avgPlasmaArea').textContent = '- μm²';
+                document.getElementById('result-plasmolysisD').textContent = '-';
+                document.getElementById('result-status').innerHTML = '-';
+                document.getElementById('drawScaleResult').style.display = 'none';
+                document.getElementById('drawScaleStatus').innerHTML = '이미지를 업로드한 후 축척 바 위에 선을 그려주세요';
+                document.getElementById('drawScaleBtn').textContent = '✏️ 축척 위에 선 그리기 시작';
+                document.getElementById('drawScaleBtn').classList.remove('active');
+
+                // Load new image
+                handleImageUpload({ target: { files: [file] } });
+                showNotification('새 이미지가 로드되었습니다. 기존 데이터는 유지됩니다.', 'success');
+            };
+            tempInput.click();
         }
 
         function clearMeasurements() {
@@ -2327,11 +2386,13 @@
         }
 
         function updatePlantChart(data) {
+            if (!plantChart) return;
             plantChart.data.datasets[0].data = data;
             plantChart.update();
         }
 
         function updateRBCChart() {
+            if (!rbcChart) return;
             const data = state.concentrations.map(c => {
                 const status = document.getElementById(`rbc-status-${c}`).value;
                 if (status === 'hemolysis') return null;
@@ -2404,14 +2465,18 @@
             document.getElementById('rbcComparisonRows').innerHTML = rbcHtml;
 
             // Update charts
-            plantCompareChart.data.datasets[1].data = state.concentrations.map(c => state.experiment.plant[c] || 0);
-            plantCompareChart.update();
+            if (plantCompareChart) {
+                plantCompareChart.data.datasets[1].data = state.concentrations.map(c => state.experiment.plant[c] || 0);
+                plantCompareChart.update();
+            }
 
-            rbcCompareChart.data.datasets[1].data = state.concentrations.map(c => {
-                const status = document.getElementById(`rbc-status-${c}`)?.value;
-                return status === 'hemolysis' ? 0 : (state.experiment.rbc[c] || 0);
-            });
-            rbcCompareChart.update();
+            if (rbcCompareChart) {
+                rbcCompareChart.data.datasets[1].data = state.concentrations.map(c => {
+                    const status = document.getElementById(`rbc-status-${c}`)?.value;
+                    return status === 'hemolysis' ? 0 : (state.experiment.rbc[c] || 0);
+                });
+                rbcCompareChart.update();
+            }
 
             // Calculate RMSE and MAE
             if (plantErrors.length > 0) {
@@ -2511,19 +2576,23 @@
                 <small style="color: var(--text-secondary);">R² = ${r2.toFixed(4)}</small>`;
 
             // Update regression chart
-            regressionChart.data.datasets[0].data = data;
-            regressionChart.data.datasets[1].data = [
-                { x: 0, y: intercept },
-                { x: 10, y: slope * 10 + intercept }
-            ];
-            regressionChart.update();
+            if (regressionChart) {
+                regressionChart.data.datasets[0].data = data;
+                regressionChart.data.datasets[1].data = [
+                    { x: 0, y: intercept },
+                    { x: 10, y: slope * 10 + intercept }
+                ];
+                regressionChart.update();
+            }
 
             // Update residual chart
-            residualChart.data.datasets[0].data = data.map(d => ({
-                x: d.x,
-                y: d.y - (slope * d.x + intercept)
-            }));
-            residualChart.update();
+            if (residualChart) {
+                residualChart.data.datasets[0].data = data.map(d => ({
+                    x: d.x,
+                    y: d.y - (slope * d.x + intercept)
+                }));
+                residualChart.update();
+            }
         }
 
         // ========== EXPORT ==========
@@ -2571,7 +2640,13 @@
 
         // ========== INIT ==========
         document.addEventListener('DOMContentLoaded', () => {
-            initCharts();
+            try {
+                initCharts();
+            } catch (e) {
+                console.error('Chart initialization error:', e);
+                showNotification('차트 초기화 오류 - 인터넷 연결을 확인하세요', 'warning');
+            }
+            updateCalibrationDisplay();
         });
     </script>
 </body>
